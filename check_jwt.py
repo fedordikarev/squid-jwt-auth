@@ -1,22 +1,40 @@
-#!/usr/bin/python3 -u
+#!/usr/local/bin/python3 -u
 
-import jwt
-import os
 import fileinput
-
-fd = open("/tmp/check.log", "a")
+import argparse
+import jwt
 
 BEARER = "Bearer%20"
 
-for line in fileinput.input():
-    fd.write(line)
-    fd.flush()
-    if not line.startswith(BEARER):
-        print("ERR")
-        continue
-    token = line[len(BEARER):-1]
-    try:
-        payload = jwt.decode(token, verify=False)
-        print("OK")
-    except jwt.DecodeError:
-        print("ERR")
+def parse_args():
+    parser = argparse.ArgumentParser(description='check jwt token')
+    parser.add_argument('--pub-key', default='/etc/squid/jwt-pub-key.pem')
+    parser.add_argument('--no-verify', action='store_true', default=False)
+    parser.add_argument('files', metavar='FILE', nargs='*', help='files to read, if empty, stdin is used')
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+
+    if not args.no_verify:
+        with open(args.pub_key, "r") as f:  #pylint: disable=invalid-name
+            pub_key = "".join(f.readlines())
+    else:
+        pub_key = None
+
+    for line in fileinput.input(files=args.files if len(args.files) > 0 else ('-', )):
+        if not line.startswith(BEARER):
+            print("ERR")
+            continue
+        token = line[len(BEARER):-1]
+        try:
+            payload = jwt.decode(token, pub_key,   #pylint: disable=unused-variable
+                                 verify=(not args.no_verify))
+            print("OK")
+        except jwt.exceptions.InvalidTokenError:
+            print("ERR")
+
+
+if __name__ == "__main__":
+    main()
