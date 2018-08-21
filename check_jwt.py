@@ -10,6 +10,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='check jwt token')
     parser.add_argument('--pub-key', default='/etc/squid/jwt-pub-key.pem')
     parser.add_argument('--no-verify', action='store_true', default=False)
+    parser.add_argument('--no-verify-aud', action='store_true', default=False)
     parser.add_argument('files', metavar='FILE', nargs='*', help='files to read, if empty, stdin is used')
     return parser.parse_args()
 
@@ -19,7 +20,7 @@ def main():
 
     if not args.no_verify:
         with open(args.pub_key, "r") as f:  #pylint: disable=invalid-name
-            pub_key = "".join(f.readlines())
+            pub_key = str.encode("".join(f.readlines()))
     else:
         pub_key = None
 
@@ -30,7 +31,9 @@ def main():
         token = line[len(BEARER):-1]
         try:
             payload = jwt.decode(token, pub_key,   #pylint: disable=unused-variable
-                                 verify=(not args.no_verify))
+                                 verify=(not args.no_verify),
+                                 options={"verify_aud": (not args.no_verify_aud)},
+                                 algorithms="RS256")
             print("OK")
         except jwt.exceptions.InvalidTokenError:
             print("ERR")
