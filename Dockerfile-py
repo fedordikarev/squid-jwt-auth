@@ -1,0 +1,8 @@
+FROM python:3.6-jessie
+
+RUN apt-get update && apt-get install -y --no-install-recommends squid3 && rm -rf /var/lib/apt/lists/*
+ADD requirements.txt /
+RUN pip install -r /requirements.txt
+
+ADD check_jwt.py squid.conf /etc/squid3/
+ENTRYPOINT ["/usr/sbin/squid3", "-N", "-d 1"]
